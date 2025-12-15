@@ -40,6 +40,8 @@ from app.schemas.token import TokenResponse  # API token schema
 from app.schemas.user import UserCreate, UserResponse, UserLogin  # User schemas
 from app.database import Base, get_db, engine  # Database connection
 
+# Schemas imports
+from app.schemas.user import UserUpdate, PasswordUpdate
 
 # ------------------------------------------------------------------------------
 # Create tables on startup using the lifespan event
@@ -255,6 +257,80 @@ def login_form(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
         "token_type": "bearer"
     }
 
+@app.put(
+        "/users/me",
+        response_model=UserResponse,
+        tags=["users"]
+)
+def update_user_profile(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update the authenticated user's profile information
+    """
+    update_data = user_update.model_dump(exclude_unset=True)
+
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update"
+        )
+    
+    #Enforce unique username
+    if "username" in update_data:
+        existing = db.query(User).filter(
+            User.username == update_data["username"],
+            User.id != current_user.id
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details="Username already in use"
+            )
+    #Enforce unique email
+    if "email" in update_data:
+        existing = db.query(User).filter(
+            User.email == update_data["email"],
+            User.id != current_user.id
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use"
+            )
+        current_user.update(**update_data)
+        db.commit()
+        db.refresh(current_user)
+        return current_user
+    
+@app.put(
+        "/users/me/password",
+        status_code=status.HTTP_200_OK,
+        tags=["users"]
+)
+def change_user_password(
+    password_update: PasswordUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = (get_db),
+):
+    """
+    Change the authenticated user's password.
+    """
+    # Verify current password
+    if not current_user.verigy_password(password_update.current_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    # Update password
+    current_user.password = User.hash_password(password_update.new_password)
+    current_user.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return {"message": "Password updated successfully"}
 
 # ------------------------------------------------------------------------------
 # Calculations Endpoints (BREAD)
