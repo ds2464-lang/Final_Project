@@ -258,9 +258,9 @@ def login_form(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
     }
 
 @app.put(
-        "/users/me",
-        response_model=UserResponse,
-        tags=["users"]
+    "/users/me",
+    response_model=UserResponse,
+    tags=["users"]
 )
 def update_user_profile(
     user_update: UserUpdate,
@@ -277,8 +277,8 @@ def update_user_profile(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update"
         )
-    
-    #Enforce unique username
+
+    # Enforce unique username
     if "username" in update_data:
         existing = db.query(User).filter(
             User.username == update_data["username"],
@@ -287,9 +287,10 @@ def update_user_profile(
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                details="Username already in use"
+                detail="Username already in use"
             )
-    #Enforce unique email
+
+    # Enforce unique email
     if "email" in update_data:
         existing = db.query(User).filter(
             User.email == update_data["email"],
@@ -300,10 +301,14 @@ def update_user_profile(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already in use"
             )
-        current_user.update(**update_data)
-        db.commit()
-        db.refresh(current_user)
-        return current_user
+
+    # Update all fields
+    current_user.update(**update_data)
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user  # ✅ Always return a User object
+
     
 @app.put(
         "/users/me/password",
@@ -313,13 +318,13 @@ def update_user_profile(
 def change_user_password(
     password_update: PasswordUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = (get_db),
+    db: Session = Depends(get_db),
 ):
     """
     Change the authenticated user's password.
     """
     # Verify current password
-    if not current_user.verigy_password(password_update.current_password):
+    if not current_user.verify_password(password_update.current_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
