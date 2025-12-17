@@ -21,7 +21,7 @@ from uuid import UUID  # For type validation of UUIDs in path parameters
 from typing import List
 
 # FastAPI imports
-from fastapi import Body, FastAPI, Depends, HTTPException, status, Request, Form
+from fastapi import Body, FastAPI, Depends, HTTPException, status, Request, Form, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles  # For serving static files (CSS, JS)
@@ -476,3 +476,8 @@ def delete_calculation(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="127.0.0.1", port=8001, log_level="info")
+
+
+@app.get("/profile", response_class=HTMLResponse, tags=["web"])
+def profile_page(request: Request):
+    return templates.TemplateResponse("profile.html", {"request": request})
