@@ -311,9 +311,9 @@ def update_user_profile(
 
     
 @app.put(
-        "/users/me/password",
-        status_code=status.HTTP_200_OK,
-        tags=["users"]
+    "/users/me/password",
+    status_code=status.HTTP_200_OK,
+    tags=["users"]
 )
 def change_user_password(
     password_update: PasswordUpdate,
@@ -323,19 +323,33 @@ def change_user_password(
     """
     Change the authenticated user's password.
     """
-    # Verify current password
-    if not current_user.verify_password(password_update.current_password):
+    try:
+        # Verify current password
+        if not current_user.verify_password(password_update.current_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+
+        # Update password
+        current_user.password = User.hash_password(password_update.new_password)
+        current_user.updated_at = datetime.now(timezone.utc)
+
+        db.commit()
+
+        return {"message": "Password updated successfully"}
+
+    except HTTPException:
+        # Let FastAPI handle known errors cleanly
+        raise
+
+    except Exception as e:
+        # Catch *all* unexpected errors and return JSON (not HTML)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
         )
-    # Update password
-    current_user.password = User.hash_password(password_update.new_password)
-    current_user.updated_at = datetime.now(timezone.utc)
 
-    db.commit()
-
-    return {"message": "Password updated successfully"}
 
 # ------------------------------------------------------------------------------
 # Calculations Endpoints (BREAD)
