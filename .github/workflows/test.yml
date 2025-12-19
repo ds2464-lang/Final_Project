@@ -76,7 +76,6 @@ jobs:
   # 2) Security Scan Job
   # ------------------------------
   security:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
